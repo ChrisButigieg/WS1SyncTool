@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WS1 UEM Sync Tool</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --ws1-blue: #0070d1;
+      --ws1-dark: #1a2332;
+      --ws1-accent: #00b4d8;
+      --ws1-success: #28a745;
+      --ws1-warning: #ffc107;
+    }
+
+    body { background: #f0f4f8; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    .navbar {
+      background: var(--ws1-dark) !important;
+      border-bottom: 3px solid var(--ws1-blue);
+    }
+    .navbar-brand { color: #fff !important; font-weight: 700; font-size: 1.2rem; }
+    .navbar-brand span { color: var(--ws1-accent); }
+
+    .step-bar {
+      background: #fff;
+      border-bottom: 1px solid #dee2e6;
+      padding: 0.75rem 0;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      color: #6c757d;
+      font-weight: 500;
+    }
+    .step-item.active { background: var(--ws1-blue); color: #fff; }
+    .step-item.done { color: var(--ws1-success); }
+    .step-item.done .step-num { background: var(--ws1-success); }
+    .step-num {
+      width: 26px; height: 26px;
+      background: #dee2e6;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-item.active .step-num { background: rgba(255,255,255,0.3); }
+
+    .section-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 1.5rem;
+    }
+    .section-card .card-header {
+      background: var(--ws1-dark);
+      color: #fff;
+      border-radius: 12px 12px 0 0;
+      padding: 0.9rem 1.25rem;
+      font-weight: 600;
+    }
+
+    .env-badge {
+      font-size: 0.7rem;
+      padding: 0.25em 0.6em;
+      border-radius: 20px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .env-badge.prod { background: #ffeaea; color: #c0392b; border: 1px solid #f5c6cb; }
+    .env-badge.uat  { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+
+    .category-card {
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      background: #fff;
+    }
+    .category-card:hover { border-color: var(--ws1-blue); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,112,209,0.15); }
+    .category-card.selected { border-color: var(--ws1-blue); background: #f0f7ff; }
+    .category-card .cat-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .category-card .cat-count {
+      position: absolute; top: 0.5rem; right: 0.75rem;
+      font-size: 0.75rem; font-weight: 700;
+      background: var(--ws1-blue); color: #fff;
+      padding: 0.1em 0.5em; border-radius: 20px;
+    }
+    .category-card .cat-count.zero { background: #dee2e6; color: #6c757d; }
+
+    .cat-select-check {
+      position: absolute; top: 0.5rem; left: 0.75rem;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+    }
+    .status-dot.ok { background: var(--ws1-success); }
+    .status-dot.err { background: #dc3545; }
+    .status-dot.pending { background: #ffc107; }
+    .status-dot.idle { background: #dee2e6; }
+
+    .conn-status { font-size: 0.85rem; }
+
+    #data-section .nav-tabs .nav-link { color: var(--ws1-dark); font-weight: 500; }
+    #data-section .nav-tabs .nav-link.active { color: var(--ws1-blue); border-bottom: 3px solid var(--ws1-blue); }
+
+    .badge-count { background: var(--ws1-blue); }
+
+    .table-select-all { cursor: pointer; }
+
+    .sync-item-row.selected td { background: #f0f7ff; }
+
+    .log-box {
+      background: #1a2332; color: #a8d8a8;
+      border-radius: 8px; padding: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .log-box .log-err { color: #ff8a80; }
+    .log-box .log-warn { color: #ffe082; }
+    .log-box .log-info { color: #a8d8a8; }
+    .log-box .log-api  { color: #7ec8e3; font-size: 0.75rem; padding-left: 1.5em; opacity: 0.85; }
+
+    .progress-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .progress-modal {
+      background: #fff; border-radius: 16px;
+      padding: 2rem 2.5rem; min-width: 360px; text-align: center;
+    }
+
+    .files-list .file-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; }
+    .files-list .file-row:last-child { border-bottom: none; }
+
+    @media (max-width: 768px) {
+      .step-item span.step-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid px-4">
+    <span class="navbar-brand">
+      <i class="bi bi-arrow-left-right me-2"></i>WS1 UEM <span>Sync Tool</span>
+    </span>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <span class="conn-status d-flex align-items-center gap-1 text-white">
+        <span class="status-dot idle" id="prod-dot"></span>
+        <span class="text-secondary small">PROD AS2419</span>
+      </span>
+      <span class="conn-status d-flex align-items-center gap-1 text-white">
+        <span class="status-dot idle" id="uat-dot"></span>
+        <span class="text-secondary small">UAT AS2679</span>
+      </span>
+    </div>
+  </div>
+</nav>
+
+<!-- Step Bar -->
+<div class="step-bar">
+  <div class="container-fluid px-4">
+    <div class="d-flex gap-1 flex-wrap">
+      <div class="step-item active" id="step-btn-1" onclick="goStep(1)">
+        <div class="step-num">1</div>
+        <span class="step-label">Configure</span>
+      </div>
+      <div class="step-item" id="step-btn-2" onclick="goStep(2)">
+        <div class="step-num">2</div>
+        <span class="step-label">Fetch PROD</span>
+      </div>
+      <div class="step-item" id="step-btn-3" onclick="goStep(3)">
+        <div class="step-num">3</div>
+        <span class="step-label">Compare UAT</span>
+      </div>
+      <div class="step-item" id="step-btn-4" onclick="goStep(4)">
+        <div class="step-num">4</div>
+        <span class="step-label">Review &amp; Select</span>
+      </div>
+      <div class="step-item" id="step-btn-5" onclick="goStep(5)">
+        <div class="step-num">5</div>
+        <span class="step-label">Save / Sync to UAT</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+
+  <!-- ========== STEP 1: Configure ========== -->
+  <div id="step-1">
+    <div class="row g-4">
+      <!-- Production -->
+      <div class="col-lg-6">
+        <div class="section-card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-server me-2"></i>Production Environment</span>
+            <span class="env-badge prod">PROD AS2419</span>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Server URL</label>
+              <input type="url" class="form-control" id="prod-url" placeholder="https://as2419.awmdm.com" />
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold">Username</label>
+                <input type="text" class="form-control" id="prod-user" placeholder="admin" autocomplete="username" />
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Password</label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="prod-pass" autocomplete="current-password" />
+                  <button class="btn btn-outline-secondary" type="button" onclick="togglePw('prod-pass')"><i class="bi bi-eye"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">API Key <span class="text-muted fw-normal">(aw-tenant-code)</span></label>
+              <input type="text" class="form-control font-monospace" id="prod-apikey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            </div>
+            <hr />
+            <p class="text-muted small mb-2"><i class="bi bi-shield-lock me-1"></i>Client Certificate (P12) — optional</p>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">P12 File Path</label>
+              <input type="text" class="form-control font-monospace" id="prod-p12" placeholder="/path/to/cert.p12" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">P12 Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="prod-p12pass" />
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePw('prod-p12pass')"><i class="bi bi-eye"></i></button>
+              </div>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="prod-ssl" checked />
+              <label class="form-check-label" for="prod-ssl">Verify SSL Certificate</label>
+            </div>
+            <button class="btn btn-outline-primary w-100" onclick="testConn('prod')">
+              <i class="bi bi-plug me-1"></i>Test Connection
+            </button>
+            <div id="prod-conn-result" class="mt-2 small"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UAT -->
+      <div class="col-lg-6">
+        <div class="section-card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-server me-2"></i>UAT Environment</span>
+            <span class="env-badge uat">UAT AS2679</span>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Server URL</label>
+              <input type="url" class="form-control" id="uat-url" placeholder="https://as2679.awmdm.com" />
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <label class="form-label fw-semibold">Username</label>
+                <input type="text" class="form-control" id="uat-user" placeholder="admin" autocomplete="username" />
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Password</label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="uat-pass" autocomplete="current-password" />
+                  <button class="btn btn-outline-secondary" type="button" onclick="togglePw('uat-pass')"><i class="bi bi-eye"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">API Key <span class="text-muted fw-normal">(aw-tenant-code)</span></label>
+              <input type="text" class="form-control font-monospace" id="uat-apikey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            </div>
+            <hr />
+            <p class="text-muted small mb-2"><i class="bi bi-shield-lock me-1"></i>Client Certificate (P12) — optional</p>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">P12 File Path</label>
+              <input type="text" class="form-control font-monospace" id="uat-p12" placeholder="/path/to/cert.p12" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">P12 Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="uat-p12pass" />
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePw('uat-p12pass')"><i class="bi bi-eye"></i></button>
+              </div>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="uat-ssl" checked />
+              <label class="form-check-label" for="uat-ssl">Verify SSL Certificate</label>
+            </div>
+            <button class="btn btn-outline-success w-100" onclick="testConn('uat')">
+              <i class="bi bi-plug me-1"></i>Test Connection
+            </button>
+            <div id="uat-conn-result" class="mt-2 small"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-2">
+      <button class="btn btn-secondary" onclick="loadConfig()"><i class="bi bi-arrow-clockwise me-1"></i>Reset</button>
+      <button class="btn btn-primary px-4" onclick="saveConfigAndNext()">
+        <i class="bi bi-floppy me-1"></i>Save &amp; Continue <i class="bi bi-arrow-right ms-1"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== STEP 2: Fetch Data ========== -->
+  <div id="step-2" style="display:none">
+    <div class="section-card">
+      <div class="card-header">
+        <i class="bi bi-cloud-download me-2"></i>Select Categories to Fetch from Production
+      </div>
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <p class="text-muted mb-0">Choose which configuration types to retrieve from <strong>AS2419</strong>.</p>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="selectAllCategories(true)">Select All</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="selectAllCategories(false)">Clear</button>
+          </div>
+        </div>
+
+        <div class="row g-3" id="category-grid">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="mt-4 pt-3 border-top d-flex align-items-center gap-3 flex-wrap">
+          <button class="btn btn-primary btn-lg px-5" id="fetch-btn" onclick="fetchData()">
+            <i class="bi bi-cloud-download me-2"></i>Fetch Selected Data
+          </button>
+          <button class="btn btn-danger btn-lg px-4" id="fetch-cancel-btn" onclick="cancelOperation()" style="display:none">
+            <i class="bi bi-stop-circle me-2"></i>Cancel
+          </button>
+          <span class="text-muted small" id="fetch-status"></span>
+        </div>
+
+        <div id="fetch-log" class="log-box mt-3" style="display:none"></div>
+
+        <!-- Custom OG type warning — shown when non-standard types are detected -->
+        <div id="custom-og-type-warning" class="alert alert-warning mt-3 mb-0" style="display:none" role="alert">
+          <div class="d-flex gap-2">
+            <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0 mt-1"></i>
+            <div>
+              <strong>Non-Standard Org Group Types Detected</strong>
+              <p class="mb-1 mt-1">
+                The following Organization Group type(s) found in Production are <strong>not built-in WS1 types</strong>
+                and must be <strong>manually added to UAT</strong> before Organizational Groups using them can be synced:
+              </p>
+              <p class="mb-1 fw-semibold font-monospace" id="custom-og-type-list"></p>
+              <p class="mb-0 small">
+                To add custom types in UAT: <strong>Workspace ONE Console → Groups &amp; Settings → All Settings →
+                System → Organization Group Types → Add</strong>.
+                Once added, return here and sync Organizational Groups — OGs using those types will then be created correctly.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debug panel: shown after fetch, reveals what each endpoint returned -->
+        <div id="debug-panel" style="display:none" class="mt-4">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="fw-semibold text-muted small"><i class="bi bi-bug me-1"></i>API Response Details</span>
+            <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleDebugPanel()">Toggle</button>
+          </div>
+          <div id="debug-table-wrap" class="table-responsive">
+            <table class="table table-sm table-bordered small mb-0" id="debug-table">
+              <thead class="table-dark">
+                <tr><th>Category</th><th>Endpoint Tried</th><th>HTTP Status</th><th>Response Keys</th><th>Items Found</th></tr>
+              </thead>
+              <tbody id="debug-tbody"></tbody>
+            </table>
+          </div>
+          <div class="mt-3">
+            <p class="text-muted small mb-2">
+              <i class="bi bi-terminal me-1"></i><strong>Manual Endpoint Probe</strong> — test any WS1 API path directly:
+            </p>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text font-monospace text-muted" id="probe-base-url">/api/</span>
+              <input type="text" class="form-control font-monospace" id="probe-path" placeholder="mdm/profiles/search?pagesize=5" />
+              <select class="form-select" style="max-width:100px" id="probe-env">
+                <option value="prod">PROD</option>
+                <option value="uat">UAT</option>
+              </select>
+              <button class="btn btn-outline-secondary" onclick="probeEndpoint()"><i class="bi bi-play-fill me-1"></i>Probe</button>
+            </div>
+            <pre id="probe-result" class="mt-2 bg-light p-3 rounded small" style="display:none;max-height:300px;overflow:auto"></pre>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== STEP 3: Compare with UAT ========== -->
+  <div id="step-3" style="display:none">
+    <div class="section-card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-arrow-left-right me-2"></i>Compare PROD vs UAT</span>
+        <span class="env-badge uat">UAT AS2679</span>
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted mb-3">
+          Fetch the same categories from UAT to identify what already exists and what still needs to be synced.
+        </p>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <button class="btn btn-primary btn-lg px-5" id="fetch-uat-btn" onclick="fetchUATData()">
+            <i class="bi bi-cloud-download me-2"></i>Fetch UAT &amp; Compare
+          </button>
+          <button class="btn btn-danger btn-lg px-4" id="fetch-uat-cancel-btn" onclick="cancelOperation()" style="display:none">
+            <i class="bi bi-stop-circle me-2"></i>Cancel
+          </button>
+          <span class="text-muted small" id="fetch-uat-status"></span>
+        </div>
+
+        <div id="fetch-uat-log" class="log-box mt-3" style="display:none"></div>
+
+        <!-- Delta report rendered here after comparison -->
+        <div id="delta-report" class="mt-4" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <button class="btn btn-secondary" onclick="goStep(2)">
+        <i class="bi bi-arrow-left me-1"></i>Re-fetch PROD
+      </button>
+      <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-outline-secondary" onclick="goStep(4)">
+          Review All Items <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+        <button class="btn btn-success btn-lg px-4" id="apply-delta-btn" onclick="applyDeltaAndProceed()" style="display:none">
+          <i class="bi bi-funnel me-2"></i>Select Only Missing Items &amp; Review
+          <span class="badge bg-white text-success ms-1" id="delta-total-badge"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== STEP 4: Review & Select ========== -->
+  <div id="step-4" style="display:none">
+    <div class="section-card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-table me-2"></i>Review Fetched Data</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-white-50 small" id="fetched-at-label"></span>
+          <button class="btn btn-sm btn-outline-light" onclick="goStep(2)"><i class="bi bi-arrow-repeat me-1"></i>Re-fetch</button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <ul class="nav nav-tabs px-3 pt-2" id="data-tabs" role="tablist"></ul>
+        <div class="tab-content p-3" id="data-tab-content"></div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-2">
+      <span class="text-muted small" id="selection-summary">No items selected</span>
+      <button class="btn btn-success btn-lg px-5" onclick="goStep(5)">
+        <i class="bi bi-arrow-right me-1"></i>Proceed to Save / Sync
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== STEP 5: Save / Sync ========== -->
+  <div id="step-5" style="display:none">
+    <div class="row g-4">
+
+      <!-- Save Locally -->
+      <div class="col-lg-6">
+        <div class="section-card">
+          <div class="card-header"><i class="bi bi-floppy2 me-2"></i>Save Locally</div>
+          <div class="card-body p-4">
+            <p class="text-muted">Export the fetched data (or just the selected items) to a JSON file on this machine.</p>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Filename</label>
+              <input type="text" class="form-control font-monospace" id="save-filename" placeholder="ws1_export_YYYYMMDD.json" />
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="save-selected-only" />
+              <label class="form-check-label" for="save-selected-only">Save selected items only</label>
+            </div>
+            <button class="btn btn-primary w-100" onclick="saveData()">
+              <i class="bi bi-download me-1"></i>Save to Disk
+            </button>
+            <div id="save-result" class="mt-2 small"></div>
+
+            <hr class="my-3" />
+
+            <p class="text-muted small mb-2">Previously saved files:</p>
+            <div id="saved-files-list" class="files-list"></div>
+            <button class="btn btn-sm btn-outline-secondary mt-2" onclick="loadSavedFiles()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sync to UAT -->
+      <div class="col-lg-6">
+        <div class="section-card">
+          <div class="card-header"><i class="bi bi-arrow-left-right me-2"></i>Sync Selected Items to UAT</div>
+          <div class="card-body p-4">
+            <div class="alert alert-warning d-flex gap-2 align-items-start">
+              <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+              <div>
+                <strong>Review before syncing.</strong> Items will be created in the UAT environment (<strong>AS2679</strong>).
+                Environment-specific IDs and references (OG IDs, smart group references) may need manual adjustment after sync.
+              </div>
+            </div>
+
+            <div id="sync-selection-summary" class="mb-3 p-3 bg-light rounded border"></div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Categories to sync</label>
+              <div id="sync-category-checkboxes"></div>
+            </div>
+
+            <button class="btn btn-success btn-lg w-100" id="sync-btn" onclick="syncToUAT()">
+              <i class="bi bi-cloud-upload me-2"></i>Sync to UAT (AS2679)
+            </button>
+            <button class="btn btn-danger btn-lg w-100 mt-2" id="sync-cancel-btn" onclick="cancelOperation()" style="display:none">
+              <i class="bi bi-stop-circle me-2"></i>Cancel Sync
+            </button>
+
+            <div id="sync-log" class="log-box mt-3" style="display:none"></div>
+            <div id="sync-result" class="mt-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Progress Overlay -->
+<div class="progress-overlay" id="progress-overlay" style="display:none">
+  <div class="progress-modal">
+    <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;" role="status"></div>
+    <h5 class="mb-1" id="progress-title">Working…</h5>
+    <p class="text-muted mb-0" id="progress-msg">Please wait</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+// ------------------------------------------------------------------ State
+
+const CATEGORIES = [
+  // Sync dependency order: org_types → organizational_groups → tags → smart_groups
+  { key: 'org_types',            label: 'Org Type List',         icon: '🗂️',  desc: 'OG type definitions (Customer, Container, Division…)', syncOrder: 1 },
+  { key: 'organizational_groups',label: 'Organizational Groups', icon: '🏢',  desc: 'OG hierarchy with parent-child structure',              syncOrder: 2 },
+  { key: 'tags',                  label: 'Tags',                  icon: '🏷️',  desc: 'Device and user tags',                                 syncOrder: 3 },
+  { key: 'smart_groups',          label: 'Smart Groups',          icon: '👥',  desc: 'Device/user smart groups',                             syncOrder: 4 },
+  { key: 'profiles',              label: 'Profiles',              icon: '📋',  desc: 'Device configuration profiles' },
+  { key: 'compliance_policies',   label: 'Compliance Policies',   icon: '🔒',  desc: 'Device compliance rules' },
+  { key: 'scripts',               label: 'Scripts',               icon: '📝',  desc: 'PowerShell / shell scripts' },
+  { key: 'sensors',               label: 'Sensors',               icon: '📡',  desc: 'Device sensors / queries' },
+  { key: 'apps_internal',         label: 'Apps (Internal)',        icon: '📦',  desc: 'In-house / enterprise apps' },
+  { key: 'apps_public',           label: 'Apps (Public)',          icon: '🛒',  desc: 'App store / public apps' },
+  { key: 'apps_purchased',        label: 'Apps (Purchased/VPP)',  icon: '🎟️',  desc: 'VPP / Apple Business Manager' },
+  { key: 'product_provisioning',  label: 'Product Provisioning',  icon: '⚙️',  desc: 'Product definitions' },
+];
+
+// Map of key -> display columns [{ field, label }]
+const CAT_COLUMNS = {
+  org_types:             [{f:'Type',l:'Type'},{f:'Count',l:'OG Count'},{f:'Description',l:'Description'}],
+  organizational_groups: [{f:'Name',l:'Name'},{f:'GroupId',l:'Group ID'},{f:'LocationGroupType',l:'Type'},{f:'_ParentName',l:'Parent OG'},{f:'Country',l:'Country'}],
+  profiles:              [{f:'ProfileName',l:'Name'},{f:'Platform',l:'Platform'},{f:'ManagedBy',l:'Managed By'},{f:'Status',l:'Status'},{f:'ProfileVersion',l:'Version'}],
+  smart_groups:          [{f:'Name',l:'Name'},{f:'CriteriaType',l:'Criteria'},{f:'ManagedByOrganizationGroupName',l:'Managed By OG'},{f:'Devices',l:'Devices'}],
+  compliance_policies:   [{f:'name',l:'Name'},{f:'platform',l:'Platform'},{f:'policyType',l:'Type'},{f:'isActive',l:'Active'}],
+  scripts:               [{f:'name',l:'Name'},{f:'platform',l:'Platform'},{f:'script_type',l:'Script Type'},{f:'organization_group_name',l:'OG'}],
+  sensors:               [{f:'name',l:'Name'},{f:'platform',l:'Platform'},{f:'query_response_type',l:'Response Type'},{f:'execution_context',l:'Context'}],
+  apps_internal:         [{f:'ApplicationName',l:'Name'},{f:'Platform',l:'Platform'},{f:'BundleId',l:'Bundle ID'},{f:'AppVersion',l:'Version'},{f:'Status',l:'Status'}],
+  apps_public:           [{f:'ApplicationName',l:'Name'},{f:'Platform',l:'Platform'},{f:'BundleId',l:'Bundle ID'},{f:'AppVersion',l:'Version'}],
+  apps_purchased:        [{f:'ApplicationName',l:'Name'},{f:'Platform',l:'Platform'},{f:'BundleId',l:'Bundle ID'},{f:'AppVersion',l:'Version'},{f:'LicenseType',l:'License'}],
+  tags:                  [{f:'TagName',l:'Name'},{f:'TagType',l:'Type'},{f:'LocationGroupName',l:'OG'}],
+  product_provisioning:  [{f:'Name',l:'Name'},{f:'Platform',l:'Platform'},{f:'Active',l:'Active'},{f:'ManagedBy',l:'Managed By'}],
+};
+
+// Sync-supported categories (informational categories with no UAT action noted separately)
+const SYNC_SUPPORTED = ['org_types','organizational_groups','tags','smart_groups','scripts','sensors','compliance_policies','profiles'];
+
+let fetchedData = {};
+let selectedItems = {}; // key -> Set of item indices
+
+let currentStep = 1;
+
+// ------------------------------------------------------------------ Helpers
+
+function showOverlay(title, msg) {
+  document.getElementById('progress-title').textContent = title;
+  document.getElementById('progress-msg').textContent = msg;
+  document.getElementById('progress-overlay').style.display = 'flex';
+}
+function hideOverlay() {
+  document.getElementById('progress-overlay').style.display = 'none';
+}
+
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `alert alert-${type} position-fixed bottom-0 end-0 m-3 shadow`;
+  el.style.cssText = 'z-index:99999;min-width:260px;max-width:400px';
+  el.innerHTML = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function togglePw(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function goStep(n) {
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById(`step-${i}`).style.display = i === n ? 'block' : 'none';
+    const btn = document.getElementById(`step-btn-${i}`);
+    btn.classList.remove('active','done');
+    if (i === n) btn.classList.add('active');
+    else if (i < n) btn.classList.add('done');
+  }
+  currentStep = n;
+  if (n === 4) renderDataTabs();
+  if (n === 5) { renderSyncSummary(); loadSavedFiles(); }
+}
+
+// ------------------------------------------------------------------ Step 1: Config
+
+async function loadConfig() {
+  const r = await fetch('/api/config');
+  const cfg = await r.json();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+
+  for (const env of ['prod','uat']) {
+    set(`${env}-url`,    cfg[env]?.server_url  || '');
+    set(`${env}-user`,   cfg[env]?.username    || '');
+    set(`${env}-pass`,   cfg[env]?.password    || '');
+    set(`${env}-apikey`, cfg[env]?.api_key     || '');
+    set(`${env}-p12`,    cfg[env]?.p12_path    || '');
+    set(`${env}-p12pass`,cfg[env]?.p12_password|| '');
+    setChk(`${env}-ssl`, cfg[env]?.verify_ssl !== false);
+  }
+}
+
+async function saveConfigAndNext() {
+  const get = id => document.getElementById(id)?.value || '';
+  const getChk = id => document.getElementById(id)?.checked ?? true;
+
+  const cfg = {};
+  for (const env of ['prod','uat']) {
+    cfg[env] = {
+      server_url:   get(`${env}-url`),
+      username:     get(`${env}-user`),
+      password:     get(`${env}-pass`),
+      api_key:      get(`${env}-apikey`),
+      p12_path:     get(`${env}-p12`),
+      p12_password: get(`${env}-p12pass`),
+      verify_ssl:   getChk(`${env}-ssl`),
+    };
+  }
+
+  await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+  toast('<i class="bi bi-check-circle me-1"></i>Configuration saved');
+  buildCategoryGrid();
+  goStep(2);
+}
+
+async function testConn(env) {
+  const resultEl = document.getElementById(`${env}-conn-result`);
+  const dot = document.getElementById(`${env}-dot`);
+  resultEl.innerHTML = '<span class="text-muted">Testing…</span>';
+  dot.className = 'status-dot pending';
+
+  // Save current form values first
+  await saveFormValues();
+
+  const r = await fetch('/api/test-connection', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ env })
+  });
+  const data = await r.json();
+
+  if (data.ok) {
+    const version = data.info?.ProductVersion || data.info?.productVersion || 'connected';
+    resultEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i>Connected — WS1 v${version}</span>`;
+    dot.className = 'status-dot ok';
+  } else {
+    resultEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i>${data.error}</span>`;
+    dot.className = 'status-dot err';
+  }
+}
+
+async function saveFormValues() {
+  const get = id => document.getElementById(id)?.value || '';
+  const getChk = id => document.getElementById(id)?.checked ?? true;
+  const cfg = {};
+  for (const env of ['prod','uat']) {
+    cfg[env] = {
+      server_url: get(`${env}-url`), username: get(`${env}-user`),
+      password: get(`${env}-pass`), api_key: get(`${env}-apikey`),
+      p12_path: get(`${env}-p12`), p12_password: get(`${env}-p12pass`),
+      verify_ssl: getChk(`${env}-ssl`),
+    };
+  }
+  await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+}
+
+// ------------------------------------------------------------------ Step 2: Fetch
+
+function buildCategoryGrid() {
+  const grid = document.getElementById('category-grid');
+  grid.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const col = document.createElement('div');
+    col.className = 'col-6 col-md-4 col-xl-3';
+    col.innerHTML = `
+      <div class="category-card selected" id="cat-card-${cat.key}" onclick="toggleCategory('${cat.key}')">
+        <input class="cat-select-check form-check-input" type="checkbox" id="cat-chk-${cat.key}" checked onclick="event.stopPropagation();toggleCategory('${cat.key}')" />
+        <div class="cat-count zero" id="cat-count-${cat.key}">—</div>
+        <div class="cat-icon">${cat.icon}</div>
+        <div class="fw-semibold">${cat.label}${cat.syncOrder ? ` <span class="badge bg-warning text-dark" title="Sync order: step ${cat.syncOrder} — must sync before dependent categories">${cat.syncOrder}</span>` : ''}</div>
+        <div class="text-muted small mt-1">${cat.desc}</div>
+      </div>`;
+    grid.appendChild(col);
+  });
+}
+
+function toggleCategory(key) {
+  const card = document.getElementById(`cat-card-${key}`);
+  const chk  = document.getElementById(`cat-chk-${key}`);
+  const selected = card.classList.toggle('selected');
+  chk.checked = selected;
+}
+
+function selectAllCategories(val) {
+  CATEGORIES.forEach(cat => {
+    const card = document.getElementById(`cat-card-${cat.key}`);
+    const chk  = document.getElementById(`cat-chk-${cat.key}`);
+    if (val) card.classList.add('selected'); else card.classList.remove('selected');
+    chk.checked = val;
+  });
+}
+
+function cancelOperation() {
+  fetch('/api/cancel', { method: 'POST' });
+}
+
+async function fetchData() {
+  const selected = CATEGORIES.filter(c => document.getElementById(`cat-chk-${c.key}`)?.checked).map(c => c.key);
+  if (!selected.length) { toast('Select at least one category', 'warning'); return; }
+
+  const logBox = document.getElementById('fetch-log');
+  logBox.style.display = 'block';
+  logBox.innerHTML = '';
+
+  function addLog(msg, cls='info') {
+    const ts = new Date().toLocaleTimeString();
+    logBox.innerHTML += `<div class="log-${cls}">[${ts}] ${msg}</div>`;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  document.getElementById('fetch-btn').style.display = 'none';
+  document.getElementById('fetch-cancel-btn').style.display = '';
+  document.getElementById('fetch-status').textContent = 'Fetching…';
+
+  addLog(`Starting fetch of ${selected.length} categor${selected.length===1?'y':'ies'} from Production AS2419…`);
+
+  function restoreFetchButtons() {
+    document.getElementById('fetch-btn').style.display = '';
+    document.getElementById('fetch-cancel-btn').style.display = 'none';
+  }
+
+  try {
+    const response = await fetch('/api/fetch', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ categories: selected })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split('\n\n');
+      buffer = chunks.pop();
+      for (const chunk of chunks) {
+        const dataLine = chunk.split('\n').find(l => l.startsWith('data: '));
+        if (!dataLine) continue;
+        let ev;
+        try { ev = JSON.parse(dataLine.slice(6)); } catch(e) { continue; }
+
+        switch (ev.type) {
+          case 'log':
+            addLog(ev.msg, ev.level || 'info');
+            break;
+          case 'api_call': {
+            const statusCls = ev.status >= 400 ? 'log-err' : '';
+            const countPart = ev.count ? ` (${ev.count} items)` : '';
+            addLog(`${ev.method} ${ev.path} → ${ev.status}${countPart}`, 'api');
+            break;
+          }
+          case 'category_start':
+            addLog(`⏳ Fetching ${ev.label}…`, 'info');
+            break;
+          case 'category_done': {
+            addLog(`✓ ${ev.label}: ${ev.count} item${ev.count===1?'':'s'}`, ev.count > 0 ? 'info' : 'warn');
+            const badge = document.getElementById(`cat-count-${ev.key}`);
+            if (badge) {
+              badge.textContent = ev.count;
+              badge.className = `cat-count${ev.count === 0 ? ' zero' : ''}`;
+            }
+            break;
+          }
+          case 'category_error':
+            addLog(`✗ ${ev.label}: ${ev.error}`, 'err');
+            break;
+          case 'cancelled':
+            addLog('⚠ Fetch cancelled by user.', 'warn');
+            break;
+          case 'complete':
+            finalData = ev;
+            break;
+        }
+      }
+    }
+
+    restoreFetchButtons();
+
+    if (!finalData) {
+      document.getElementById('fetch-status').textContent = 'Cancelled';
+      return;
+    }
+
+    if (!finalData.ok) {
+      addLog('ERROR: ' + (finalData.error || 'Unknown error'), 'err');
+      toast(finalData.error || 'Fetch failed', 'danger');
+      document.getElementById('fetch-status').textContent = 'Error';
+      return;
+    }
+
+    // Pull full items from server
+    const fullResp = await fetch('/api/data');
+    fetchedData = await fullResp.json();
+
+    for (const [key, err] of Object.entries(finalData.errors || {})) {
+      const cat = CATEGORIES.find(c => c.key === key);
+      addLog(`✗ ${cat?.label||key}: ${err}`, 'err');
+    }
+
+    const total = Object.values(finalData.results).reduce((s, v) => s + v.count, 0);
+    document.getElementById('fetch-status').textContent =
+      `✓ ${total} items across ${Object.keys(finalData.results).length} categories`;
+    addLog(`Done — ${total} total items fetched`, 'info');
+
+    const customTypes = finalData.custom_og_types || [];
+    window._customOgTypes = customTypes;
+    const warningEl = document.getElementById('custom-og-type-warning');
+    if (customTypes.length) {
+      warningEl.style.display = '';
+      document.getElementById('custom-og-type-list').textContent = customTypes.join(', ');
+      addLog(`⚠ Non-standard OG types detected: ${customTypes.join(', ')} — must be added manually in UAT before syncing OGs`, 'warn');
+    } else {
+      warningEl.style.display = 'none';
+    }
+
+    await renderDebugPanel();
+
+    selectedItems = {};
+    Object.keys(fetchedData).filter(k => !k.startsWith('_')).forEach(k => { selectedItems[k] = new Set(); });
+
+    toast(`<i class="bi bi-check-circle me-1"></i>${total} items fetched`);
+
+    if (total > 0) {
+      setTimeout(() => { buildCategoryGrid(); goStep(3); }, 800);  // Step 3 = Compare
+    }
+
+  } catch(e) {
+    restoreFetchButtons();
+    addLog('Network error: ' + e.message, 'err');
+    toast('Network error: ' + e.message, 'danger');
+    document.getElementById('fetch-status').textContent = 'Error';
+  }
+}
+
+async function renderDebugPanel() {
+  const panel = document.getElementById('debug-panel');
+  const tbody = document.getElementById('debug-tbody');
+  panel.style.display = 'block';
+  tbody.innerHTML = '';
+
+  try {
+    const r = await fetch('/api/debug');
+    const debugData = await r.json();
+
+    for (const [catKey, catInfo] of Object.entries(debugData)) {
+      const cat = CATEGORIES.find(c=>c.key===catKey);
+      const endpointDebug = catInfo.debug || {};
+
+      // One row per endpoint attempted
+      const paths = Object.keys(endpointDebug);
+      paths.forEach((path, i) => {
+        const d = endpointDebug[path];
+        const statusCls = d.status === 200 ? 'text-success fw-semibold'
+                        : d.status === 404 ? 'text-muted'
+                        : d.status >= 400  ? 'text-danger fw-semibold'
+                        : 'text-warning';
+        const countCls  = d.count > 0 ? 'text-success fw-bold' : 'text-muted';
+        const keys = Array.isArray(d.keys) ? d.keys.join(', ') : d.keys;
+        const tr = document.createElement('tr');
+        if (i === 0) {
+          tr.innerHTML = `
+            <td rowspan="${paths.length}" class="align-middle fw-semibold">
+              ${cat?.icon||''} ${catInfo.label}
+              ${catInfo.count > 0 ? `<span class="badge bg-success ms-1">${catInfo.count}</span>` : '<span class="badge bg-secondary ms-1">0</span>'}
+            </td>
+            <td class="font-monospace small">${escHtml(path)}</td>
+            <td class="${statusCls}">${d.status || '—'}</td>
+            <td class="small text-muted">${escHtml(keys || '—')}</td>
+            <td class="${countCls}">${d.count}</td>`;
+        } else {
+          tr.innerHTML = `
+            <td class="font-monospace small">${escHtml(path)}</td>
+            <td class="${statusCls}">${d.status || '—'}</td>
+            <td class="small text-muted">${escHtml(keys || '—')}</td>
+            <td class="${countCls}">${d.count}</td>`;
+        }
+        tbody.appendChild(tr);
+      });
+
+      // Warn when every attempted endpoint returned 404 (likely an API permissions gap)
+      const allFailed = paths.length > 0 && paths.every(p => {
+        const d = endpointDebug[p];
+        return d && (d.status === 404 || d.status === 0);
+      });
+      if (allFailed && catInfo.count === 0) {
+        const tr = document.createElement('tr');
+        tr.className = 'table-warning';
+        tr.innerHTML = `<td colspan="5" class="small">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <strong>All endpoints returned 404.</strong> This usually means the API key role does not have permission
+          for this feature, or it is managed through a different API (e.g. WS1 Intelligence).
+          Check <em>Groups &amp; Settings &gt; System &gt; Advanced &gt; API &gt; REST API</em> and confirm
+          the role includes this resource type.
+        </td>`;
+        tbody.appendChild(tr);
+      }
+
+      if (!paths.length) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${cat?.icon||''} ${catInfo.label}</td><td colspan="4" class="text-muted">No probe data</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Set probe base URL from config
+    const cfg = await (await fetch('/api/config')).json();
+    const base = (cfg.prod?.server_url || '').replace(/\/$/, '');
+    document.getElementById('probe-base-url').textContent = base + '/';
+
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-danger">Failed to load debug info: ${e.message}</td></tr>`;
+  }
+}
+
+function toggleDebugPanel() {
+  const wrap = document.getElementById('debug-table-wrap');
+  wrap.style.display = wrap.style.display === 'none' ? '' : 'none';
+}
+
+async function probeEndpoint() {
+  const pathInput = document.getElementById('probe-path').value.trim();
+  if (!pathInput) return;
+  const env = document.getElementById('probe-env').value;
+  const resultEl = document.getElementById('probe-result');
+
+  // Split path from query string
+  const [pathPart, qsPart] = pathInput.split('?');
+  const fullPath = '/api/' + pathPart.replace(/^\/?(api\/)?/, '');
+  const params = {};
+  if (qsPart) {
+    new URLSearchParams(qsPart).forEach((v,k) => params[k] = v);
+  }
+
+  resultEl.style.display = 'block';
+  resultEl.textContent = 'Probing…';
+
+  try {
+    const r = await fetch('/api/probe', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ path: fullPath, env, params })
+    });
+    const data = await r.json();
+    resultEl.textContent = JSON.stringify(data, null, 2);
+  } catch(e) {
+    resultEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+// ------------------------------------------------------------------ Step 3: Review
+
+let dtInstances = {};
+
+function renderDataTabs() {
+  const tabs = document.getElementById('data-tabs');
+  const content = document.getElementById('data-tab-content');
+  tabs.innerHTML = '';
+  content.innerHTML = '';
+
+  // Destroy old DataTable instances
+  Object.values(dtInstances).forEach(dt => { try { dt.destroy(); } catch(e){} });
+  dtInstances = {};
+
+  const keys = Object.keys(fetchedData).filter(k => !k.startsWith('_'));
+  if (!keys.length) {
+    content.innerHTML = '<div class="text-muted p-4">No data loaded. Go back and fetch data first.</div>';
+    return;
+  }
+
+  const fetAt = fetchedData._fetched_at ? new Date(fetchedData._fetched_at).toLocaleString() : '';
+  document.getElementById('fetched-at-label').textContent = fetAt ? `Fetched: ${fetAt}` : '';
+
+  keys.forEach((key, idx) => {
+    const info = fetchedData[key];
+    const cat = CATEGORIES.find(c => c.key === key) || { label: key, icon: '📄' };
+    const cols = CAT_COLUMNS[key] || [];
+    const isFirst = idx === 0;
+
+    // Tab
+    const li = document.createElement('li');
+    li.className = 'nav-item';
+    li.innerHTML = `
+      <button class="nav-link ${isFirst?'active':''}" data-bs-toggle="tab" data-bs-target="#tab-${key}">
+        ${cat.icon} ${cat.label}
+        <span class="badge rounded-pill badge-count ms-1">${info.count}</span>
+      </button>`;
+    tabs.appendChild(li);
+
+    // Pane
+    const pane = document.createElement('div');
+    pane.className = `tab-pane fade ${isFirst?'show active':''}`;
+    pane.id = `tab-${key}`;
+
+    if (!info.items || info.items.length === 0) {
+      pane.innerHTML = '<div class="text-muted py-4 text-center"><i class="bi bi-inbox fs-3 d-block mb-2"></i>No items returned for this category.</div>';
+      content.appendChild(pane);
+      return;
+    }
+
+    const selCount = () => selectedItems[key]?.size || 0;
+
+    // Build table
+    const tableId = `dt-${key}`;
+    pane.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="selectAllInCat('${key}', true)">Select All</button>
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="selectAllInCat('${key}', false)">Clear</button>
+          <span class="text-muted small ms-2" id="sel-count-${key}">0 selected</span>
+        </div>
+        <span class="badge bg-secondary">${info.count} items</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm" id="${tableId}" style="width:100%">
+          <thead>
+            <tr>
+              <th><input type="checkbox" class="form-check-input table-select-all" onchange="selectAllInCat('${key}', this.checked)" /></th>
+              ${cols.map(c=>`<th>${c.l}</th>`).join('')}
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${info.items.map((item, i) => `
+              <tr class="sync-item-row" id="row-${key}-${i}">
+                <td><input type="checkbox" class="form-check-input item-chk" data-cat="${key}" data-idx="${i}" onchange="onItemCheck('${key}', ${i}, this.checked)" /></td>
+                ${cols.map(c => `<td>${escHtml(item[c.f] ?? '—')}</td>`).join('')}
+                <td><button class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="showItemDetail('${key}',${i})"><i class="bi bi-eye"></i></button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    content.appendChild(pane);
+
+    // Init DataTable after DOM insert
+    requestAnimationFrame(() => {
+      try {
+        dtInstances[key] = $(`#${tableId}`).DataTable({
+          pageLength: 25, lengthMenu: [10,25,50,100],
+          columnDefs: [{ orderable: false, targets: [0, cols.length+1] }],
+        });
+      } catch(e) { console.warn('DT init error', e); }
+      updateSelCount(key);
+    });
+  });
+}
+
+function onItemCheck(key, idx, checked) {
+  if (!selectedItems[key]) selectedItems[key] = new Set();
+  if (checked) selectedItems[key].add(idx);
+  else selectedItems[key].delete(idx);
+  const row = document.getElementById(`row-${key}-${idx}`);
+  if (row) row.classList.toggle('selected', checked);
+  updateSelCount(key);
+  updateGlobalSelSummary();
+}
+
+function selectAllInCat(key, val) {
+  if (!selectedItems[key]) selectedItems[key] = new Set();
+  if (!fetchedData[key]) return;
+  fetchedData[key].items.forEach((_, i) => {
+    if (val) selectedItems[key].add(i);
+    else selectedItems[key].delete(i);
+    const row = document.getElementById(`row-${key}-${i}`);
+    if (row) row.classList.toggle('selected', val);
+  });
+  document.querySelectorAll(`[data-cat="${key}"].item-chk`).forEach(el => el.checked = val);
+  updateSelCount(key);
+  updateGlobalSelSummary();
+}
+
+function updateSelCount(key) {
+  const el = document.getElementById(`sel-count-${key}`);
+  if (el) el.textContent = `${selectedItems[key]?.size || 0} selected`;
+}
+
+function updateGlobalSelSummary() {
+  let total = 0;
+  Object.values(selectedItems).forEach(s => total += s.size);
+  document.getElementById('selection-summary').textContent =
+    total ? `${total} item${total===1?'':'s'} selected across ${Object.values(selectedItems).filter(s=>s.size>0).length} categor${Object.values(selectedItems).filter(s=>s.size>0).length===1?'y':'ies'}` : 'No items selected';
+}
+
+function showItemDetail(key, idx) {
+  const item = fetchedData[key]?.items[idx];
+  if (!item) return;
+  const cat = CATEGORIES.find(c=>c.key===key);
+
+  // Build a modal dynamically
+  const existing = document.getElementById('detail-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal fade';
+  modal.id = 'detail-modal';
+  modal.innerHTML = `
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header" style="background:var(--ws1-dark);color:#fff">
+          <h5 class="modal-title">${cat?.icon||''} ${cat?.label||key} — Item ${idx+1}</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <pre class="bg-light p-3 rounded" style="font-size:0.82rem;max-height:60vh;overflow:auto">${escHtml(JSON.stringify(item, null, 2))}</pre>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  new bootstrap.Modal(modal).show();
+}
+
+function escHtml(v) {
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ------------------------------------------------------------------ Step 4: Save / Sync
+
+function renderSyncSummary() {
+  const el = document.getElementById('sync-selection-summary');
+  const chks = document.getElementById('sync-category-checkboxes');
+  chks.innerHTML = '';
+
+  let total = 0;
+  const lines = [];
+
+  for (const [key, idxSet] of Object.entries(selectedItems)) {
+    if (!idxSet.size) continue;
+    const cat = CATEGORIES.find(c=>c.key===key);
+    total += idxSet.size;
+    const supported = SYNC_SUPPORTED.includes(key);
+    lines.push(`<li>${cat?.icon||''} <strong>${cat?.label||key}</strong>: ${idxSet.size} item${idxSet.size===1?'':'s'} ${supported?'<span class="badge bg-success ms-1 small">Auto-sync</span>':'<span class="badge bg-secondary ms-1 small">Save only</span>'}</li>`);
+
+    const div = document.createElement('div');
+    div.className = 'form-check';
+    div.innerHTML = `
+      <input class="form-check-input" type="checkbox" id="sync-chk-${key}" ${supported?'checked':''} ${supported?'':'disabled'} />
+      <label class="form-check-label" for="sync-chk-${key}">
+        ${cat?.icon||''} ${cat?.label||key} (${idxSet.size} selected)
+        ${supported?'':'<span class="text-muted small ms-1">— manual import required</span>'}
+      </label>`;
+    chks.appendChild(div);
+  }
+
+  if (!total) {
+    el.innerHTML = '<span class="text-muted">No items selected. Go back to Step 3 to select items.</span>';
+  } else {
+    el.innerHTML = `<strong>${total} item${total===1?'':'s'} selected:</strong><ul class="mb-0 mt-1">${lines.join('')}</ul>`;
+  }
+}
+
+async function saveData() {
+  const filename = document.getElementById('save-filename').value.trim();
+  const selOnly = document.getElementById('save-selected-only').checked;
+
+  let categories = null;
+  if (selOnly) {
+    categories = Object.entries(selectedItems).filter(([,s])=>s.size>0).map(([k])=>k);
+    if (!categories.length) { toast('No items selected to save', 'warning'); return; }
+  }
+
+  showOverlay('Saving…', 'Writing JSON to disk');
+
+  const r = await fetch('/api/save', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ filename: filename || undefined, categories })
+  });
+  hideOverlay();
+  const data = await r.json();
+
+  const el = document.getElementById('save-result');
+  if (data.ok) {
+    el.innerHTML = `<div class="alert alert-success py-2 mb-0">
+      <i class="bi bi-check-circle me-1"></i>Saved to <code>${data.path}</code>
+      <a href="/api/download/${encodeURIComponent(data.filename)}" class="btn btn-sm btn-outline-success ms-2" download>
+        <i class="bi bi-download me-1"></i>Download
+      </a>
+    </div>`;
+    loadSavedFiles();
+  } else {
+    el.innerHTML = `<div class="alert alert-danger py-2 mb-0">${data.error}</div>`;
+  }
+}
+
+async function loadSavedFiles() {
+  const r = await fetch('/api/saved-files');
+  const files = await r.json();
+  const el = document.getElementById('saved-files-list');
+  if (!files.length) { el.innerHTML = '<span class="text-muted small">No saved files yet.</span>'; return; }
+  el.innerHTML = files.map(f => `
+    <div class="file-row">
+      <i class="bi bi-file-earmark-code text-primary"></i>
+      <div class="flex-grow-1">
+        <div class="fw-semibold small">${escHtml(f.name)}</div>
+        <div class="text-muted" style="font-size:0.75rem">${(f.size/1024).toFixed(1)} KB &middot; ${new Date(f.modified).toLocaleString()}</div>
+      </div>
+      <a href="/api/download/${encodeURIComponent(f.name)}" class="btn btn-xs btn-outline-primary py-0 px-2" download>
+        <i class="bi bi-download"></i>
+      </a>
+    </div>`).join('');
+}
+
+async function syncToUAT(acknowledgeCustomTypes = false) {
+  const toSync = {};
+  for (const [key, idxSet] of Object.entries(selectedItems)) {
+    const chk = document.getElementById(`sync-chk-${key}`);
+    if (!chk || !chk.checked || !idxSet.size) continue;
+    toSync[key] = [...idxSet].map(i => fetchedData[key].items[i]);
+  }
+
+  if (!Object.keys(toSync).length) {
+    toast('No items selected for sync', 'warning'); return;
+  }
+
+  // Warn before syncing OGs if custom types were detected during fetch
+  if (!acknowledgeCustomTypes && toSync.organizational_groups && (window._customOgTypes||[]).length) {
+    document.getElementById('og-sync-custom-types-list').textContent = window._customOgTypes.join(', ');
+    new bootstrap.Modal(document.getElementById('ogSyncWarningModal')).show();
+    return;
+  }
+
+  const total = Object.values(toSync).reduce((s,v)=>s+v.length,0);
+  if (!confirm(`Sync ${total} item(s) to UAT?\n\nThis will CREATE these items in UAT. Continue?`)) return;
+
+  const syncLog = document.getElementById('sync-log');
+  const resultEl = document.getElementById('sync-result');
+  syncLog.style.display = 'block';
+  syncLog.innerHTML = '';
+  resultEl.innerHTML = '';
+
+  function addLog(msg, cls='info') {
+    const ts = new Date().toLocaleTimeString();
+    syncLog.innerHTML += `<div class="log-${cls}">[${ts}] ${msg}</div>`;
+    syncLog.scrollTop = syncLog.scrollHeight;
+  }
+
+  document.getElementById('sync-btn').style.display = 'none';
+  document.getElementById('sync-cancel-btn').style.display = '';
+
+  function restoreSyncButtons() {
+    document.getElementById('sync-btn').style.display = '';
+    document.getElementById('sync-cancel-btn').style.display = 'none';
+  }
+
+  try {
+    const response = await fetch('/api/sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ selections: toSync, acknowledge_custom_types: acknowledgeCustomTypes })
+    });
+
+    // Server may return plain JSON for pre-flight errors (config missing, custom-type gate)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('event-stream')) {
+      restoreSyncButtons();
+      const data = await response.json();
+      if (!data.ok && data.error === 'custom_og_types_unacknowledged') {
+        document.getElementById('og-sync-custom-types-list').textContent = (data.custom_og_types||[]).join(', ');
+        new bootstrap.Modal(document.getElementById('ogSyncWarningModal')).show();
+        return;
+      }
+      resultEl.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>${escHtml(data.message || data.error)}</div>`;
+      return;
+    }
+
+    // SSE streaming
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalData = null;
+    // Track per-category counts for live log display
+    const catCounts = {};
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split('\n\n');
+      buffer = chunks.pop();
+      for (const chunk of chunks) {
+        const dataLine = chunk.split('\n').find(l => l.startsWith('data: '));
+        if (!dataLine) continue;
+        let ev;
+        try { ev = JSON.parse(dataLine.slice(6)); } catch(e) { continue; }
+
+        switch (ev.type) {
+          case 'log':
+            addLog(ev.msg, ev.level || 'info');
+            break;
+          case 'api_call':
+            addLog(`${ev.method} ${ev.path} → ${ev.status}`, 'api');
+            break;
+          case 'category_start': {
+            const cat = CATEGORIES.find(c => c.key === ev.key);
+            catCounts[ev.key] = { success: 0, failed: 0, total: ev.total };
+            addLog(`⏳ Syncing ${cat?.label || ev.key} (${ev.total} item${ev.total===1?'':'s'})…`, 'info');
+            break;
+          }
+          case 'category_done': {
+            const cat = CATEGORIES.find(c => c.key === ev.key);
+            const ok = ev.success || 0;
+            const fail = ev.failed || 0;
+            addLog(`✓ ${cat?.label || ev.key}: ${ok} created${fail ? `, ${fail} failed` : ''}`,
+                   fail > 0 ? 'warn' : 'info');
+            break;
+          }
+          case 'category_skipped': {
+            const cat = CATEGORIES.find(c => c.key === ev.key);
+            addLog(`— ${cat?.label || ev.key}: ${ev.reason}`, 'warn');
+            break;
+          }
+          case 'item_done': {
+            const c = catCounts[ev.key];
+            if (c) { c.success++; addLog(`  ✓ ${ev.name}`, 'api'); }
+            break;
+          }
+          case 'item_error': {
+            const c = catCounts[ev.key];
+            if (c) c.failed++;
+            addLog(`  ✗ ${ev.name}: ${ev.error}`, 'err');
+            break;
+          }
+          case 'cancelled':
+            addLog('⚠ Sync cancelled by user.', 'warn');
+            break;
+          case 'complete':
+            finalData = ev;
+            break;
+        }
+      }
+    }
+
+    restoreSyncButtons();
+
+    if (!finalData) return;  // cancelled
+
+    // Build results summary
+    let html = '';
+    for (const w of (finalData.warnings || [])) {
+      html += `<div class="alert alert-info py-2 mb-2"><i class="bi bi-info-circle me-2"></i>${escHtml(w)}</div>`;
+    }
+    for (const [key, result] of Object.entries(finalData.results || {})) {
+      const cat = CATEGORIES.find(c => c.key === key);
+      if (result.status === 'skipped' || result.status === 'informational') {
+        const cls = result.status === 'informational' ? 'light border' : 'secondary';
+        html += `<div class="alert alert-${cls} py-2 mb-2">
+          <strong>${cat?.icon||''} ${cat?.label||key}</strong> — ${escHtml(result.reason)}</div>`;
+      } else {
+        const cls = result.failed > 0 ? 'warning' : 'success';
+        html += `<div class="alert alert-${cls} py-2 mb-2">
+          <strong>${cat?.icon||''} ${cat?.label||key}</strong>
+          — ✓ ${result.success} created${result.failed ? `, ✗ ${result.failed} failed` : ''}
+          ${result.failures?.length
+            ? `<details class="mt-1"><summary>View failures</summary><pre class="mt-1" style="font-size:0.75rem">${escHtml(JSON.stringify(result.failures,null,2))}</pre></details>`
+            : ''}
+        </div>`;
+      }
+    }
+    resultEl.innerHTML = html || '<div class="text-muted small">No results.</div>';
+    toast('<i class="bi bi-check-circle me-1"></i>Sync complete');
+
+  } catch(e) {
+    restoreSyncButtons();
+    addLog('Network error: ' + e.message, 'err');
+    toast('Network error: ' + e.message, 'danger');
+  }
+}
+
+// ------------------------------------------------------------------ Step 3: Compare with UAT
+
+function getNameKey(category) {
+  const MAP = {
+    org_types: 'Type', organizational_groups: 'GroupId', tags: 'TagName',
+    smart_groups: 'Name', profiles: 'ProfileName', compliance_policies: 'name',
+    scripts: 'name', sensors: 'name', apps_internal: 'ApplicationName',
+    apps_public: 'ApplicationName', apps_purchased: 'ApplicationName',
+    product_provisioning: 'Name',
+  };
+  return MAP[category] || 'Name';
+}
+
+async function fetchUATData() {
+  const prodKeys = Object.keys(fetchedData).filter(k => !k.startsWith('_'));
+  if (!prodKeys.length) { toast('Fetch PROD data first (Step 2)', 'warning'); return; }
+
+  const logBox = document.getElementById('fetch-uat-log');
+  logBox.style.display = 'block';
+  logBox.innerHTML = '';
+
+  function addLog(msg, cls='info') {
+    const ts = new Date().toLocaleTimeString();
+    logBox.innerHTML += `<div class="log-${cls}">[${ts}] ${msg}</div>`;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  document.getElementById('fetch-uat-btn').style.display = 'none';
+  document.getElementById('fetch-uat-cancel-btn').style.display = '';
+  document.getElementById('fetch-uat-status').textContent = 'Fetching UAT data…';
+  document.getElementById('delta-report').style.display = 'none';
+  document.getElementById('apply-delta-btn').style.display = 'none';
+
+  function restoreButtons() {
+    document.getElementById('fetch-uat-btn').style.display = '';
+    document.getElementById('fetch-uat-cancel-btn').style.display = 'none';
+  }
+
+  addLog(`Fetching ${prodKeys.length} categories from UAT AS2679…`);
+
+  try {
+    const response = await fetch('/api/fetch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ categories: prodKeys, env: 'uat' })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', finalData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split('\n\n');
+      buffer = chunks.pop();
+      for (const chunk of chunks) {
+        const dataLine = chunk.split('\n').find(l => l.startsWith('data: '));
+        if (!dataLine) continue;
+        let ev;
+        try { ev = JSON.parse(dataLine.slice(6)); } catch(e) { continue; }
+        switch (ev.type) {
+          case 'log':            addLog(ev.msg, ev.level || 'info'); break;
+          case 'api_call':       addLog(`${ev.method} ${ev.path} → ${ev.status}`, 'api'); break;
+          case 'category_start': addLog(`⏳ Fetching ${ev.label}…`, 'info'); break;
+          case 'category_done':  addLog(`✓ ${ev.label}: ${ev.count} items`, ev.count > 0 ? 'info' : 'warn'); break;
+          case 'category_error': addLog(`✗ ${ev.label}: ${ev.error}`, 'err'); break;
+          case 'cancelled':      addLog('⚠ UAT fetch cancelled.', 'warn'); break;
+          case 'complete':       finalData = ev; break;
+        }
+      }
+    }
+
+    restoreButtons();
+    if (!finalData) { document.getElementById('fetch-uat-status').textContent = 'Cancelled'; return; }
+
+    const total = Object.values(finalData.results).reduce((s, v) => s + v.count, 0);
+    document.getElementById('fetch-uat-status').textContent = `✓ ${total} UAT items fetched`;
+    addLog(`UAT fetch complete — ${total} items. Running comparison…`, 'info');
+
+    const cmpResp = await fetch('/api/compare');
+    const cmpData = await cmpResp.json();
+    if (!cmpData.ok) { addLog('Compare error: ' + cmpData.error, 'err'); return; }
+
+    renderDeltaReport(cmpData.comparison);
+
+  } catch(e) {
+    restoreButtons();
+    addLog('Error: ' + e.message, 'err');
+    toast('Error: ' + e.message, 'danger');
+  }
+}
+
+function renderDeltaReport(comparison) {
+  window._comparisonData = comparison;
+
+  let totalMissing = 0, totalExists = 0, totalUatOnly = 0;
+  for (const d of Object.values(comparison)) {
+    totalMissing  += d.missing_count;
+    totalExists   += d.exists_count;
+    totalUatOnly  += d.uat_only_count;
+  }
+
+  const alertCls = totalMissing > 0 ? 'alert-warning' : 'alert-success';
+  const alertIcon = totalMissing > 0 ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill';
+  const catsWithDelta = Object.values(comparison).filter(d => d.missing_count > 0).length;
+
+  let html = `
+    <div class="alert ${alertCls} d-flex gap-2 align-items-start mb-3">
+      <i class="bi ${alertIcon} fs-5 flex-shrink-0 mt-1"></i>
+      <div>
+        <strong>${totalMissing} item${totalMissing !== 1 ? 's' : ''}</strong> across
+        <strong>${catsWithDelta} categor${catsWithDelta !== 1 ? 'ies' : 'y'}</strong>
+        exist in PROD but are missing from UAT and need to be synced.
+        ${totalExists ? `<span class="ms-2 text-success"><i class="bi bi-check-circle me-1"></i>${totalExists} already in UAT.</span>` : ''}
+        ${totalUatOnly ? `<span class="ms-2 text-muted"><i class="bi bi-info-circle me-1"></i>${totalUatOnly} in UAT only.</span>` : ''}
+      </div>
+    </div>
+    <div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Category</th>
+          <th class="text-center">PROD</th>
+          <th class="text-center">UAT</th>
+          <th class="text-center text-warning">Missing in UAT</th>
+          <th class="text-center text-success">Already Synced</th>
+          <th class="text-center text-secondary">UAT Only</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  for (const [key, d] of Object.entries(comparison)) {
+    const cat = CATEGORIES.find(c => c.key === key);
+    const missingCls = d.missing_count > 0 ? 'text-danger fw-bold' : 'text-muted';
+    const existsCls  = d.exists_count  > 0 ? 'text-success fw-semibold' : 'text-muted';
+
+    html += `<tr>
+      <td>${cat?.icon || ''} <strong>${d.label}</strong></td>
+      <td class="text-center">${d.prod_count}</td>
+      <td class="text-center">${d.uat_count}</td>
+      <td class="text-center ${missingCls}">${d.missing_count > 0 ? `⚠ ${d.missing_count}` : '—'}</td>
+      <td class="text-center ${existsCls}">${d.exists_count > 0 ? `✓ ${d.exists_count}` : '—'}</td>
+      <td class="text-center text-muted">${d.uat_only_count > 0 ? d.uat_only_count : '—'}</td>
+    </tr>`;
+
+    if (d.missing_count > 0 && d.missing_names?.length) {
+      const names = d.missing_names.map(n => `<span class="badge bg-warning text-dark me-1 mb-1">${escHtml(n)}</span>`).join('');
+      const more  = d.missing_count > d.missing_names.length
+        ? `<span class="text-muted small ms-1">+${d.missing_count - d.missing_names.length} more</span>` : '';
+      html += `<tr class="table-warning">
+        <td colspan="6" class="py-1 ps-4 small">
+          <details><summary class="text-muted" style="cursor:pointer">
+            Show ${d.missing_count} missing item${d.missing_count !== 1 ? 's' : ''}
+          </summary>
+          <div class="mt-2">${names}${more}</div></details>
+        </td>
+      </tr>`;
+    }
+    if (d.uat_only_count > 0 && d.uat_only_names?.length) {
+      const names = d.uat_only_names.map(n => `<span class="badge bg-secondary me-1 mb-1">${escHtml(n)}</span>`).join('');
+      html += `<tr class="table-secondary">
+        <td colspan="6" class="py-1 ps-4 small">
+          <details><summary class="text-muted" style="cursor:pointer">
+            Show ${d.uat_only_count} UAT-only item${d.uat_only_count !== 1 ? 's' : ''} (not in PROD)
+          </summary>
+          <div class="mt-2">${names}</div></details>
+        </td>
+      </tr>`;
+    }
+  }
+
+  html += '</tbody></table></div>';
+
+  const el = document.getElementById('delta-report');
+  el.innerHTML = html;
+  el.style.display = '';
+
+  if (totalMissing > 0) {
+    document.getElementById('apply-delta-btn').style.display = '';
+    document.getElementById('delta-total-badge').textContent = `${totalMissing} items`;
+  }
+}
+
+function applyDeltaAndProceed() {
+  const comparison = window._comparisonData;
+  if (!comparison) { goStep(4); return; }
+
+  selectedItems = {};
+  for (const [key, d] of Object.entries(comparison)) {
+    if (!fetchedData[key] || !d.missing_indices?.length) {
+      selectedItems[key] = new Set();
+      continue;
+    }
+    selectedItems[key] = new Set(d.missing_indices);
+  }
+
+  const total = Object.values(selectedItems).reduce((s, set) => s + set.size, 0);
+  toast(`<i class="bi bi-funnel me-1"></i>${total} missing items pre-selected`);
+  goStep(4);
+}
+
+// ------------------------------------------------------------------ Init
+
+(async function init() {
+  await loadConfig();
+  buildCategoryGrid();
+})();
+</script>
+
+<!-- ===== Custom OG Type Warning Modal ===== -->
+<div class="modal fade" id="ogSyncWarningModal" tabindex="-1" aria-labelledby="ogSyncWarningModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-warning">
+      <div class="modal-header bg-warning bg-opacity-10 border-warning">
+        <h5 class="modal-title" id="ogSyncWarningModalLabel">
+          <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+          Non-Standard Org Group Types Require Manual Setup
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>
+          The Organizational Groups you are about to sync include OGs assigned to
+          <strong>non-standard Organization Group Type(s)</strong> that are not built into
+          Workspace ONE UEM:
+        </p>
+        <p class="alert alert-warning py-2 font-monospace fw-semibold mb-3" id="og-sync-custom-types-list"></p>
+        <p>
+          WS1 cannot create OGs with custom types unless those types already exist in
+          the target environment. If you proceed without first adding these types to UAT,
+          those OG records <strong>will fail to create</strong>.
+        </p>
+        <hr>
+        <p class="fw-semibold mb-1">Before proceeding, add the custom type(s) in UAT:</p>
+        <ol class="mb-0">
+          <li>Log in to the <strong>UAT Workspace ONE Console</strong></li>
+          <li>Navigate to <strong>Groups &amp; Settings → All Settings → System → Organization Group Types</strong></li>
+          <li>Click <strong>Add</strong> and enter each custom type name exactly as shown above</li>
+          <li>Save, then return here and click <em>Proceed Anyway</em> to continue the sync</li>
+        </ol>
+      </div>
+      <div class="modal-footer border-warning">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle me-1"></i>Cancel — I'll add the types first
+        </button>
+        <button type="button" class="btn btn-warning" onclick="
+          bootstrap.Modal.getInstance(document.getElementById('ogSyncWarningModal')).hide();
+          syncToUAT(true);
+        ">
+          <i class="bi bi-exclamation-triangle me-1"></i>Proceed Anyway — Types Already Added
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
